@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../App';
+import { useTranslation } from 'react-i18next';
 import { 
   LayoutDashboard, 
   Plus, 
@@ -12,17 +13,19 @@ import {
   X
 } from 'lucide-react';
 import { useState } from 'react';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const Navigation = () => {
   const { user, logout } = useContext(AuthContext);
+  const { t } = useTranslation();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/add-expense', icon: Plus, label: 'Add Expense' },
-    { path: '/expenses', icon: Receipt, label: 'Expenses' },
-    { path: '/shared', icon: Users, label: 'Shared' },
+    { path: '/dashboard', icon: LayoutDashboard, label: t('navigation.dashboard') },
+    { path: '/add-expense', icon: Plus, label: t('navigation.addExpense') },
+    { path: '/expenses', icon: Receipt, label: t('navigation.expenses') },
+    { path: '/shared', icon: Users, label: t('navigation.shared') },
   ];
 
   const isActive = (path) => location.pathname === path;
