@@ -53,23 +53,28 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        {/* Language switcher in top-right */}
+        <div className="flex justify-end mb-4">
+          <LanguageSwitcher />
+        </div>
+        
         {/* Logo/Brand Section */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 glass rounded-full mb-4 floating">
             <Wallet className="w-8 h-8 text-cyan-400" />
           </div>
-          <h1 className="text-3xl font-bold gradient-text mb-2">MoneyFlow</h1>
-          <p className="text-slate-400">Track personal & shared expenses with ease</p>
+          <h1 className="text-3xl font-bold gradient-text mb-2">{t('brand.name')}</h1>
+          <p className="text-slate-400">{t('brand.tagline')}</p>
         </div>
 
         {/* Auth Form */}
         <div className="glass p-8 rounded-2xl">
           <div className="text-center mb-6">
             <h2 className="text-2xl font-semibold text-white mb-2">
-              {isLogin ? 'Welcome Back' : 'Create Account'}
+              {isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}
             </h2>
             <p className="text-slate-400">
-              {isLogin ? 'Sign in to your account' : 'Start tracking your finances'}
+              {isLogin ? t('auth.signInAccount') : t('auth.startTracking')}
             </p>
           </div>
 
@@ -77,7 +82,7 @@ const Login = () => {
             {!isLogin && (
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Full Name
+                  {t('auth.fullName')}
                 </label>
                 <input
                   type="text"
@@ -85,7 +90,7 @@ const Login = () => {
                   value={formData.name}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 glass-input"
-                  placeholder="Enter your full name"
+                  placeholder={t('auth.enterFullName')}
                   required={!isLogin}
                 />
               </div>
@@ -93,7 +98,7 @@ const Login = () => {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Email Address
+                {t('auth.emailAddress')}
               </label>
               <input
                 type="email"
@@ -101,14 +106,14 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 glass-input"
-                placeholder="Enter your email"
+                placeholder={t('auth.enterEmail')}
                 required
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Password
+                {t('auth.password')}
               </label>
               <div className="relative">
                 <input
@@ -117,7 +122,7 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 pr-12 glass-input"
-                  placeholder="Enter your password"
+                  placeholder={t('auth.enterPassword')}
                   required
                 />
                 <button
@@ -145,7 +150,7 @@ const Login = () => {
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-cyan-400"></div>
               ) : (
                 <>
-                  <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                  <span>{isLogin ? t('auth.signIn') : t('auth.signUp')}</span>
                   <ArrowRight size={16} />
                 </>
               )}
@@ -157,10 +162,7 @@ const Login = () => {
               onClick={() => setIsLogin(!isLogin)}
               className="text-cyan-400 hover:text-cyan-300 font-medium text-sm"
             >
-              {isLogin 
-                ? "Don't have an account? Sign up" 
-                : "Already have an account? Sign in"
-              }
+              {isLogin ? t('auth.noAccount') : t('auth.haveAccount')}
             </button>
           </div>
         </div>
@@ -172,19 +174,19 @@ const Login = () => {
               <div className="w-8 h-8 mx-auto mb-2 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full flex items-center justify-center">
                 <Wallet size={16} className="text-white" />
               </div>
-              <div>Personal Expenses</div>
+              <div>{t('features.personalExpenses')}</div>
             </div>
             <div className="glass-card p-3 rounded-lg">
               <div className="w-8 h-8 mx-auto mb-2 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center">
                 <div className="w-3 h-3 bg-white rounded-full"></div>
               </div>
-              <div>Shared Tracking</div>
+              <div>{t('features.sharedTracking')}</div>
             </div>
             <div className="glass-card p-3 rounded-lg">
               <div className="w-8 h-8 mx-auto mb-2 bg-gradient-to-r from-green-400 to-teal-500 rounded-full flex items-center justify-center">
                 <div className="w-4 h-2 bg-white rounded"></div>
               </div>
-              <div>Smart Analytics</div>
+              <div>{t('features.smartAnalytics')}</div>
             </div>
           </div>
         </div>
