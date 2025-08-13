@@ -1,7 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../App';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Eye, EyeOff, Wallet, ArrowRight } from 'lucide-react';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -18,6 +20,7 @@ const Login = () => {
   const [error, setError] = useState('');
   
   const { login } = useContext(AuthContext);
+  const { t } = useTranslation();
 
   const handleInputChange = (e) => {
     setFormData({
