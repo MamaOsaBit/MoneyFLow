@@ -145,7 +145,7 @@ const Navigation = () => {
                   className="flex items-center space-x-3 px-4 py-3 w-full text-left text-sm text-slate-300 hover:text-red-400 transition-colors"
                 >
                   <LogOut size={18} />
-                  <span>Logout</span>
+                  <span>{t('navigation.logout')}</span>
                 </button>
               </div>
             </div>
