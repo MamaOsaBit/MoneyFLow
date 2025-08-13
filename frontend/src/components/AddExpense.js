@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../App';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { 
   Plus, 
@@ -20,6 +21,7 @@ const API = `${BACKEND_URL}/api`;
 const AddExpense = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
