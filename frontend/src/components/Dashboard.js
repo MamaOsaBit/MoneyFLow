@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../App';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { 
   TrendingUp, 
@@ -19,6 +20,7 @@ const API = `${BACKEND_URL}/api`;
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
+  const { t } = useTranslation();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recentExpenses, setRecentExpenses] = useState([]);
