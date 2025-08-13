@@ -44,7 +44,7 @@ const Login = () => {
       const response = await axios.post(`${API}${endpoint}`, payload);
       login(response.data.access_token, response.data.user);
     } catch (err) {
-      setError(err.response?.data?.detail || 'An error occurred');
+      setError(err.response?.data?.detail || t('common.error'));
     } finally {
       setLoading(false);
     }
