@@ -149,7 +149,7 @@ async def register(user_data: UserCreate):
     
     # Create user
     hashed_password = hash_password(user_data.password)
-    user = User(email=user_data.email, name=user_data.name)
+    user = User(email=user_data.email, name=user_data.name, language=user_data.language)
     user_dict = user.dict()
     user_dict["password"] = hashed_password
     
