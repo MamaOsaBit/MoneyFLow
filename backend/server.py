@@ -186,6 +186,21 @@ async def login(login_data: UserLogin):
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     return current_user
 
+@api_router.put("/users/me", response_model=User)
+async def update_current_user(user_update: UserUpdate, current_user: User = Depends(get_current_user)):
+    """Update current user profile"""
+    update_data = {k: v for k, v in user_update.dict().items() if v is not None}
+    
+    if update_data:
+        update_data["updated_at"] = datetime.utcnow()
+        await db.users.update_one({"id": current_user.id}, {"$set": update_data})
+        
+        # Get updated user
+        updated_user_doc = await db.users.find_one({"id": current_user.id})
+        return User(**updated_user_doc)
+    
+    return current_user
+
 @api_router.get("/users/search")
 async def search_users(email: str, current_user: User = Depends(get_current_user)):
     """Search users by email for invitations"""
