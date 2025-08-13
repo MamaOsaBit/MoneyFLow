@@ -28,6 +28,7 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { i18n } = useTranslation();
 
   // Check for existing token on app load
   useEffect(() => {
@@ -38,6 +39,10 @@ function App() {
       axios.get(`${API}/users/me`)
         .then(response => {
           setUser(response.data);
+          // Set language from user preference
+          if (response.data.language && response.data.language !== i18n.language) {
+            i18n.changeLanguage(response.data.language);
+          }
         })
         .catch(() => {
           // Token is invalid, remove it
@@ -50,12 +55,16 @@ function App() {
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [i18n]);
 
   const login = (token, userInfo) => {
     localStorage.setItem('token', token);
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(userInfo);
+    // Set language from user preference
+    if (userInfo.language && userInfo.language !== i18n.language) {
+      i18n.changeLanguage(userInfo.language);
+    }
   };
 
   const logout = () => {
