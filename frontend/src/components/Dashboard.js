@@ -88,9 +88,9 @@ const Dashboard = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">
-            Welcome back, {user?.name?.split(' ')[0]}! 👋
+            {t('dashboard.welcomeBack', { name: user?.name?.split(' ')[0] })}
           </h1>
-          <p className="text-slate-400">Here's your financial overview</p>
+          <p className="text-slate-400">{t('dashboard.financialOverview')}</p>
         </div>
 
         {/* Stats Cards */}
