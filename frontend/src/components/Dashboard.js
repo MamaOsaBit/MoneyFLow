@@ -99,7 +99,7 @@ const Dashboard = () => {
           <div className="glass-card p-6 expense-card">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-slate-400 text-sm">Total Expenses</p>
+                <p className="text-slate-400 text-sm">{t('dashboard.totalExpenses')}</p>
                 <p className="text-2xl font-bold text-white">
                   {formatCurrency(stats?.total_expenses || 0)}
                 </p>
@@ -110,7 +110,7 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center text-green-400 text-sm">
               <ArrowUpRight size={16} className="mr-1" />
-              <span>This month</span>
+              <span>{t('dashboard.thisMonth')}</span>
             </div>
           </div>
 
@@ -118,7 +118,7 @@ const Dashboard = () => {
           <div className="glass-card p-6 expense-card">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-slate-400 text-sm">Personal</p>
+                <p className="text-slate-400 text-sm">{t('dashboard.personal')}</p>
                 <p className="text-2xl font-bold text-white">
                   {formatCurrency(stats?.personal_total || 0)}
                 </p>
@@ -128,7 +128,7 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center text-purple-400 text-sm">
-              <span>Only yours</span>
+              <span>{t('dashboard.onlyYours')}</span>
             </div>
           </div>
 
@@ -136,7 +136,7 @@ const Dashboard = () => {
           <div className="glass-card p-6 expense-card">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-slate-400 text-sm">Shared</p>
+                <p className="text-slate-400 text-sm">{t('dashboard.shared')}</p>
                 <p className="text-2xl font-bold text-white">
                   {formatCurrency(stats?.shared_total || 0)}
                 </p>
@@ -146,7 +146,7 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center text-green-400 text-sm">
-              <span>With others</span>
+              <span>{t('dashboard.withOthers')}</span>
             </div>
           </div>
 
@@ -154,7 +154,7 @@ const Dashboard = () => {
           <div className="glass-card p-6 expense-card">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-slate-400 text-sm">Categories</p>
+                <p className="text-slate-400 text-sm">{t('dashboard.categories')}</p>
                 <p className="text-2xl font-bold text-white">
                   {Object.keys(stats?.category_breakdown || {}).length}
                 </p>
@@ -164,7 +164,7 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center text-yellow-400 text-sm">
-              <span>Active</span>
+              <span>{t('dashboard.active')}</span>
             </div>
           </div>
         </div>
