@@ -67,6 +67,9 @@ const Navigation = () => {
 
             {/* User Menu */}
             <div className="flex items-center space-x-4">
+              {/* Language Switcher */}
+              <LanguageSwitcher />
+              
               <div className="hidden md:flex items-center space-x-3">
                 <div className="text-right">
                   <div className="text-sm font-medium text-white">{user?.name}</div>
@@ -82,7 +85,7 @@ const Navigation = () => {
               <button
                 onClick={logout}
                 className="hidden md:flex items-center space-x-2 px-3 py-2 text-sm text-slate-300 hover:text-red-400 transition-colors"
-                title="Logout"
+                title={t('navigation.logout')}
               >
                 <LogOut size={16} />
               </button>
