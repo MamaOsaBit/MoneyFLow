@@ -7,35 +7,36 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 import uuid
 from datetime import datetime, timedelta
 import jwt
 from passlib.context import CryptContext
-import re
 
+# Carga variables de entorno desde .env
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
+# Conexión a MongoDB usando motor (asíncrono)
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
+# Inicializa la aplicación FastAPI
 app = FastAPI(title="Personal & Shared Finance Tracker")
 
-# Create a router with the /api prefix
+# Crea un router para agrupar rutas bajo /api
 api_router = APIRouter(prefix="/api")
 
-# Security setup
-security = HTTPBearer()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Configuración de seguridad y JWT
+security = HTTPBearer()  # Autenticación tipo Bearer (JWT)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # Hash de contraseñas
 SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Models
+# ------------------- MODELOS DE DATOS -------------------
+
 class UserCreate(BaseModel):
     email: EmailStr
     name: str
@@ -66,9 +67,9 @@ class ExpenseCreate(BaseModel):
     amount: float
     date: datetime
     category: str
-    type: str  # "personal" or "shared"
+    type: str  # "personal" o "shared"
     description: Optional[str] = None
-    shared_with: Optional[List[str]] = []  # List of user IDs for shared expenses
+    shared_with: Optional[List[str]] = []  # IDs de usuarios para gastos compartidos
 
 class Expense(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -89,7 +90,7 @@ class SharedGroup(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     creator_id: str
-    members: List[str] = []  # List of user IDs
+    members: List[str] = []  # IDs de usuarios
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class DashboardStats(BaseModel):
@@ -99,7 +100,8 @@ class DashboardStats(BaseModel):
     monthly_breakdown: Dict[str, Dict[str, float]]
     category_breakdown: Dict[str, float]
 
-# Helper functions
+# ------------------- FUNCIONES AUXILIARES -------------------
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -108,13 +110,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def mongo_to_user(user_doc: dict) -> User:
+    """Convierte un documento de Mongo a un objeto User eliminando _id y password."""
+    user_doc = dict(user_doc)  # copia
+    user_doc.pop("_id", None)
+    user_doc.pop("password", None)
+    return User(**user_doc)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     credentials_exception = HTTPException(
@@ -131,87 +136,62 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise credentials_exception
     
     user_doc = await db.users.find_one({"id": user_id})
-    if user_doc is None:
+    if not user_doc:
         raise credentials_exception
     
-    return User(**user_doc)
+    return mongo_to_user(user_doc)
 
-# Authentication routes
+# ------------------- RUTAS DE AUTENTICACIÓN -------------------
+
 @api_router.post("/auth/register", response_model=Token)
 async def register(user_data: UserCreate):
-    # Check if user already exists
-    existing_user = await db.users.find_one({"email": user_data.email})
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # Create user
+    if await db.users.find_one({"email": user_data.email}):
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     hashed_password = hash_password(user_data.password)
     user = User(email=user_data.email, name=user_data.name, language=user_data.language)
     user_dict = user.dict()
     user_dict["password"] = hashed_password
-    
+
     await db.users.insert_one(user_dict)
-    
-    # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.id}, expires_delta=access_token_expires
-    )
-    
+    access_token = create_access_token(data={"sub": user.id}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return Token(access_token=access_token, token_type="bearer", user=user)
 
 @api_router.post("/auth/login", response_model=Token)
 async def login(login_data: UserLogin):
     user_doc = await db.users.find_one({"email": login_data.email})
-    if not user_doc or not verify_password(login_data.password, user_doc["password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    if not user_doc or not verify_password(login_data.password, user_doc.get("password", "")):
+        raise HTTPException(status_code=401, detail="Incorrect email or password", headers={"WWW-Authenticate": "Bearer"})
     
-    user = User(**user_doc)
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.id}, expires_delta=access_token_expires
-    )
-    
+    user = mongo_to_user(user_doc)
+    access_token = create_access_token(data={"sub": user.id}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return Token(access_token=access_token, token_type="bearer", user=user)
 
-# User routes
+# ------------------- RUTAS DE USUARIO -------------------
+
 @api_router.get("/users/me", response_model=User)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     return current_user
 
 @api_router.put("/users/me", response_model=User)
 async def update_current_user(user_update: UserUpdate, current_user: User = Depends(get_current_user)):
-    """Update current user profile"""
     update_data = {k: v for k, v in user_update.dict().items() if v is not None}
-    
     if update_data:
         update_data["updated_at"] = datetime.utcnow()
         await db.users.update_one({"id": current_user.id}, {"$set": update_data})
-        
-        # Get updated user
         updated_user_doc = await db.users.find_one({"id": current_user.id})
-        return User(**updated_user_doc)
-    
+        return mongo_to_user(updated_user_doc)
     return current_user
 
 @api_router.get("/users/search")
 async def search_users(email: str, current_user: User = Depends(get_current_user)):
-    """Search users by email for invitations"""
     user_doc = await db.users.find_one({"email": email})
     if not user_doc:
         return {"found": False}
-    
-    user = User(**user_doc)
-    return {"found": True, "user": {"id": user.id, "email": user.email, "name": user.name}}
+    return {"found": True, "user": {"id": user_doc["id"], "email": user_doc["email"], "name": user_doc["name"]}}
 
-# Expense routes
+# ------------------- RUTAS DE GASTOS -------------------
+
 @api_router.post("/expenses", response_model=Expense)
 async def create_expense(expense_data: ExpenseCreate, current_user: User = Depends(get_current_user)):
     expense = Expense(user_id=current_user.id, **expense_data.dict())
@@ -220,161 +200,114 @@ async def create_expense(expense_data: ExpenseCreate, current_user: User = Depen
 
 @api_router.get("/expenses", response_model=List[Expense])
 async def get_user_expenses(current_user: User = Depends(get_current_user)):
-    expenses_cursor = db.expenses.find({
-        "$or": [
-            {"user_id": current_user.id},
-            {"shared_with": current_user.id}
-        ]
-    }).sort("date", -1)
-    expenses = await expenses_cursor.to_list(1000)
-    return [Expense(**expense) for expense in expenses]
+    cursor = db.expenses.find({"$or": [{"user_id": current_user.id}, {"shared_with": current_user.id}]}).sort("date", -1)
+    expenses = await cursor.to_list(1000)
+    return [Expense(**e) for e in expenses]
 
 @api_router.get("/expenses/{expense_id}", response_model=Expense)
 async def get_expense(expense_id: str, current_user: User = Depends(get_current_user)):
-    expense_doc = await db.expenses.find_one({
-        "id": expense_id,
-        "$or": [
-            {"user_id": current_user.id},
-            {"shared_with": current_user.id}
-        ]
-    })
+    expense_doc = await db.expenses.find_one({"id": expense_id, "$or": [{"user_id": current_user.id}, {"shared_with": current_user.id}]})
     if not expense_doc:
         raise HTTPException(status_code=404, detail="Expense not found")
     return Expense(**expense_doc)
 
 @api_router.put("/expenses/{expense_id}", response_model=Expense)
 async def update_expense(expense_id: str, expense_data: ExpenseCreate, current_user: User = Depends(get_current_user)):
-    # Only allow owner to update
     expense_doc = await db.expenses.find_one({"id": expense_id, "user_id": current_user.id})
     if not expense_doc:
         raise HTTPException(status_code=404, detail="Expense not found or not authorized")
-    
     update_data = expense_data.dict()
     update_data["updated_at"] = datetime.utcnow()
-    
     await db.expenses.update_one({"id": expense_id}, {"$set": update_data})
-    
     updated_expense_doc = await db.expenses.find_one({"id": expense_id})
     return Expense(**updated_expense_doc)
 
 @api_router.delete("/expenses/{expense_id}")
 async def delete_expense(expense_id: str, current_user: User = Depends(get_current_user)):
-    # Only allow owner to delete
     result = await db.expenses.delete_one({"id": expense_id, "user_id": current_user.id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Expense not found or not authorized")
     return {"message": "Expense deleted successfully"}
 
-# Dashboard routes
+# ------------------- DASHBOARD -------------------
+
 @api_router.get("/dashboard/stats", response_model=DashboardStats)
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
-    # Get all expenses for the user (owned or shared)
-    expenses_cursor = db.expenses.find({
-        "$or": [
-            {"user_id": current_user.id},
-            {"shared_with": current_user.id}
-        ]
-    })
-    expenses = await expenses_cursor.to_list(1000)
-    
+    cursor = db.expenses.find({"$or": [{"user_id": current_user.id}, {"shared_with": current_user.id}]})
+    expenses = await cursor.to_list(1000)
     personal_total = 0.0
     shared_total = 0.0
     monthly_breakdown = {}
     category_breakdown = {}
-    
-    for expense_doc in expenses:
-        expense = Expense(**expense_doc)
-        amount = expense.amount
-        
-        # Calculate totals
-        if expense.type == "personal":
-            personal_total += amount
-        else:  # shared
-            if expense.user_id == current_user.id:
-                # User created this shared expense
-                shared_total += amount
-            else:
-                # User is part of this shared expense
-                # For simplicity, we'll divide by number of people sharing
-                share_count = len(expense.shared_with) + 1  # +1 for the creator
-                shared_total += amount / share_count
-        
-        # Monthly breakdown
-        month_key = expense.date.strftime("%Y-%m")
-        if month_key not in monthly_breakdown:
-            monthly_breakdown[month_key] = {"personal": 0.0, "shared": 0.0}
-        
-        if expense.type == "personal":
-            monthly_breakdown[month_key]["personal"] += amount
+    for doc in expenses:
+        exp = Expense(**doc)
+        amt = exp.amount
+        # Totales
+        if exp.type == "personal":
+            personal_total += amt
         else:
-            if expense.user_id == current_user.id:
-                monthly_breakdown[month_key]["shared"] += amount
+            if exp.user_id == current_user.id:
+                shared_total += amt
             else:
-                share_count = len(expense.shared_with) + 1
-                monthly_breakdown[month_key]["shared"] += amount / share_count
-        
-        # Category breakdown
-        if expense.category not in category_breakdown:
-            category_breakdown[expense.category] = 0.0
-        
-        if expense.type == "personal" or expense.user_id == current_user.id:
-            category_breakdown[expense.category] += amount
+                shared_total += amt / (len(exp.shared_with)+1)
+        # Mes
+        month = exp.date.strftime("%Y-%m")
+        monthly_breakdown.setdefault(month, {"personal":0.0,"shared":0.0})
+        if exp.type == "personal":
+            monthly_breakdown[month]["personal"] += amt
         else:
-            share_count = len(expense.shared_with) + 1
-            category_breakdown[expense.category] += amount / share_count
-    
-    return DashboardStats(
-        personal_total=personal_total,
-        shared_total=shared_total,
-        total_expenses=personal_total + shared_total,
-        monthly_breakdown=monthly_breakdown,
-        category_breakdown=category_breakdown
-    )
+            if exp.user_id == current_user.id:
+                monthly_breakdown[month]["shared"] += amt
+            else:
+                monthly_breakdown[month]["shared"] += amt / (len(exp.shared_with)+1)
+        # Categoría
+        category_breakdown.setdefault(exp.category, 0.0)
+        if exp.type=="personal" or exp.user_id==current_user.id:
+            category_breakdown[exp.category] += amt
+        else:
+            category_breakdown[exp.category] += amt / (len(exp.shared_with)+1)
+    return DashboardStats(personal_total=personal_total, shared_total=shared_total,
+                          total_expenses=personal_total+shared_total,
+                          monthly_breakdown=monthly_breakdown, category_breakdown=category_breakdown)
 
-# Shared groups routes
+# ------------------- GRUPOS COMPARTIDOS -------------------
+
 @api_router.post("/shared-groups", response_model=SharedGroup)
 async def create_shared_group(group_data: SharedGroupCreate, current_user: User = Depends(get_current_user)):
-    # Find users by email
-    member_ids = [current_user.id]  # Creator is always a member
-    
+    member_ids = [current_user.id]
     for email in group_data.member_emails:
         user_doc = await db.users.find_one({"email": email})
         if user_doc and user_doc["id"] != current_user.id:
             member_ids.append(user_doc["id"])
-    
-    group = SharedGroup(
-        name=group_data.name,
-        creator_id=current_user.id,
-        members=member_ids
-    )
-    
+    group = SharedGroup(name=group_data.name, creator_id=current_user.id, members=member_ids)
     await db.shared_groups.insert_one(group.dict())
     return group
 
 @api_router.get("/shared-groups", response_model=List[SharedGroup])
 async def get_user_shared_groups(current_user: User = Depends(get_current_user)):
-    groups_cursor = db.shared_groups.find({"members": current_user.id})
-    groups = await groups_cursor.to_list(1000)
-    return [SharedGroup(**group) for group in groups]
+    cursor = db.shared_groups.find({"members": current_user.id})
+    groups = await cursor.to_list(1000)
+    return [SharedGroup(**g) for g in groups]
 
-# Include the router in the main app
+# ------------------- CONFIGURACIÓN FINAL -------------------
+
 app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)

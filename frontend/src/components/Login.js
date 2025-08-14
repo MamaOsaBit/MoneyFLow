@@ -44,7 +44,23 @@ const Login = () => {
       const response = await axios.post(`${API}${endpoint}`, payload);
       login(response.data.access_token, response.data.user);
     } catch (err) {
-      setError(err.response?.data?.detail || t('common.error'));
+      // Log completo para depuración en consola
+      console.error('Error en registro/login:', err);
+
+      // Muestra el mensaje del backend si existe, o el status, o el mensaje genérico
+      if (err.response) {
+        if (err.response.data?.detail) {
+          setError(`Error: ${err.response.data.detail}`);
+        } else if (err.response.data) {
+          setError(`Error: ${JSON.stringify(err.response.data)}`);
+        } else {
+          setError(`Error HTTP ${err.response.status}: ${err.response.statusText}`);
+        }
+      } else if (err.message) {
+        setError(`Error: ${err.message}`);
+      } else {
+        setError(t('common.error'));
+      }
     } finally {
       setLoading(false);
     }
